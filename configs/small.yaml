@@ -1,0 +1,38 @@
+seed: 42
+
+data:
+  grid_resolution: 16
+  chord_per: beat
+  max_seq_len: 128
+  train_split: 0.9
+  data_dir: data/processed
+  num_examples: 100
+
+model:
+  melody_vocab_size: 15
+  chord_vocab_size: 86
+  d_model: 64
+  nhead: 2
+  num_layers: 1
+  dim_feedforward: 128
+  dropout: 0.0
+  max_seq_len: 128
+  num_bar_positions: 16
+
+training:
+  batch_size: 16
+  learning_rate: 0.002
+  weight_decay: 0.0
+  epochs: 10
+  patience: 5
+  checkpoint_dir: outputs/checkpoints
+  log_dir: outputs/logs
+
+generation:
+  default_pattern: block
+  accomp_octave: 3
+  velocity: 70
+
+export:
+  opset_version: 14
+  output_dir: exports

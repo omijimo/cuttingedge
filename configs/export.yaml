@@ -1,0 +1,9 @@
+# Export-specific overrides
+# Use alongside a model config: values here override the base.
+export:
+  opset_version: 14
+  output_dir: exports
+
+# Force deterministic inference (dropout off) regardless of model config
+model:
+  dropout: 0.0

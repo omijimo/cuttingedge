@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Accompaniment Demo</string>
+    <string name="select_midi">Select a sample melody</string>
+    <string name="run_inference">Generate Accompaniment</string>
+    <string name="play">Play</string>
+    <string name="stop">Stop</string>
+    <string name="status_ready">Ready — select a melody and tap Generate</string>
+    <string name="status_running">Running inference…</string>
+    <string name="status_done">Done! Tap Play to listen.</string>
+    <string name="status_error">Error: %s</string>
+    <string name="chords_label">Predicted chords:</string>
+</resources>
