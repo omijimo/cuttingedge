@@ -63,6 +63,20 @@ def render_output(
 ) -> pretty_midi.PrettyMIDI:
     mel_tuples = melody_events_to_tuples(melody_events, tempo, grid_resolution)
     acc_tuples = accomp_notes_to_tuples(accomp_notes, tempo)
+
+    # Clip accompaniment so it does not continue after melody ends
+    if mel_tuples:
+        melody_end = max(end for _, _, end, _ in mel_tuples)
+
+        clipped_acc = []
+        for pitch, start, end, velocity in acc_tuples:
+            if start >= melody_end:
+                continue
+            end = min(end, melody_end)
+            clipped_acc.append((pitch, start, end, velocity))
+
+        acc_tuples = clipped_acc
+
     pm = create_output_midi(mel_tuples, acc_tuples, tempo)
     if output_path:
         save_midi(pm, output_path)

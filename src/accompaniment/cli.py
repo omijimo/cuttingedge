@@ -55,7 +55,7 @@ def cmd_infer(args: argparse.Namespace) -> None:
     from .io.melody_extract import select_melody_track, extract_melody_events
     from .io.tokenization import tokenize_melody, pad_sequence, PAD_TOKEN
     from .training.eval import load_model_from_checkpoint
-    from .generation.chord_decode import greedy_decode, decode_to_labels
+    from .generation.chord_decode import greedy_decode, sample_decode, decode_to_labels
     from .generation.accompaniment_rules import generate_accompaniment
     from .generation.midi_render import render_output
 
@@ -77,32 +77,50 @@ def cmd_infer(args: argparse.Namespace) -> None:
     log.info("Extracted %d melody events at %.0f BPM", len(events), tempo)
 
     mel_tokens, beat_pos = tokenize_melody(events)
-    mel_padded = pad_sequence(mel_tokens, max_seq, PAD_TOKEN)
-    bpos_padded = pad_sequence(beat_pos, max_seq, 0)
-
-    mel_t = torch.from_numpy(mel_padded).unsqueeze(0).to(device)
-    bpos_t = torch.from_numpy(bpos_padded).unsqueeze(0).to(device)
-
-    with torch.no_grad():
-        logits = model(mel_t, bpos_t)
-
-    actual_len = min(len(mel_tokens), max_seq)
-    logits_trimmed = logits[0, :actual_len]
 
     steps_per_beat = grid_res // 4
-    chord_ids = greedy_decode(logits_trimmed.unsqueeze(0), grid_res, steps_per_beat)
+    chord_ids = []
+
+    with torch.no_grad():
+        for start in range(0, len(mel_tokens), max_seq):
+            end = min(start + max_seq, len(mel_tokens))
+
+            mel_padded = pad_sequence(mel_tokens[start:end], max_seq, PAD_TOKEN)
+            bpos_padded = pad_sequence(beat_pos[start:end], max_seq, 0)
+
+            mel_t = torch.from_numpy(mel_padded).unsqueeze(0).to(device)
+            bpos_t = torch.from_numpy(bpos_padded).unsqueeze(0).to(device)
+
+            logits = model(mel_t, bpos_t)
+
+            actual_len = end - start
+            logits_trimmed = logits[0, :actual_len]
+
+            chunk_chord_ids = sample_decode(
+                logits_trimmed.unsqueeze(0),
+                grid_res,
+                steps_per_beat,
+                temperature=1.2,
+                top_k=5,
+                avoid_repeat=True,
+            )
+
+            chord_ids.extend(chunk_chord_ids)
+
+   
     chord_labels = decode_to_labels(chord_ids)
     log.info("Predicted chords: %s …", chord_labels[:16])
 
     accomp_notes = generate_accompaniment(
         chord_ids,
         tempo=tempo,
-        beats_per_chord=1,
+        beats_per_chord=2,
         octave=gen_cfg.get("accomp_octave", 3),
         velocity=gen_cfg.get("velocity", 70),
         pattern_name=gen_cfg.get("default_pattern"),
         time_sig=time_sig,
     )
+
 
     output_path = args.output or "output.mid"
     render_output(events, accomp_notes, tempo, grid_res, output_path)
