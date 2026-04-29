@@ -128,5 +128,132 @@
                 android:layout_marginStart="8dp" />
         </LinearLayout>
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="16dp"
+            android:background="@color/on_surface_secondary" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/realtime_section_title"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface"
+            android:layout_marginBottom="6dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/realtime_section_subtitle"
+            android:textSize="13sp"
+            android:textColor="@color/on_surface_secondary"
+            android:layout_marginBottom="12dp" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/realtimeUseMidiSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/realtime_use_midi_switch"
+            android:layout_marginBottom="12dp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/realtimeBpmLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/realtime_bpm_hint"
+            android:layout_marginBottom="10dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/realtimeBpmInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="numberDecimal"
+                android:text="120" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/realtime_key_label"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface"
+            android:layout_marginBottom="4dp" />
+
+        <Spinner
+            android:id="@+id/realtimeKeySpinner"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="10dp"
+            android:background="?attr/selectableItemBackground" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/realtime_mode_label"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface"
+            android:layout_marginBottom="4dp" />
+
+        <Spinner
+            android:id="@+id/realtimeModeSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="10dp"
+            android:background="?attr/selectableItemBackground" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/realtime_quantization_label"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface"
+            android:layout_marginBottom="4dp" />
+
+        <Spinner
+            android:id="@+id/realtimeQuantSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="10dp"
+            android:background="?attr/selectableItemBackground" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/realtimeLagLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/realtime_lag_hint"
+            android:layout_marginBottom="12dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/realtimeLagInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:text="1" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/realtimePlayPauseButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="@string/realtime_play"
+            style="@style/Widget.Material3.Button.TonalButton"
+            app:cornerRadius="12dp"
+            android:layout_marginBottom="10dp" />
+
+        <TextView
+            android:id="@+id/realtimeStatusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/realtime_status_idle"
+            android:textSize="13sp"
+            android:textColor="@color/on_surface_secondary"
+            android:layout_marginBottom="24dp" />
+
     </LinearLayout>
 </ScrollView>

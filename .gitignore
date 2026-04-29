@@ -37,3 +37,4 @@ Thumbs.db
 # Android / Gradle local caches
 .gradle/
 **/.gradle/
+**/.cxx/

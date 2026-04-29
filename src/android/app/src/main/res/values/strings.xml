@@ -10,4 +10,20 @@
     <string name="status_done">Done! Tap Play to listen.</string>
     <string name="status_error">Error: %s</string>
     <string name="chords_label">Predicted chords:</string>
+    <string name="realtime_section_title">Real-time accompaniment</string>
+    <string name="realtime_section_subtitle">Mic input → pitch detection → streaming chords → accompaniment scheduler</string>
+    <string name="realtime_use_midi_switch">Use selected sample MIDI as input (debug, bypass pitch detector)</string>
+    <string name="realtime_bpm_hint">BPM</string>
+    <string name="realtime_key_label">Key (optional)</string>
+    <string name="realtime_mode_label">Mode (optional)</string>
+    <string name="realtime_quantization_label">Quantization</string>
+    <string name="realtime_lag_hint">Bar lag for playback (1 or 2)</string>
+    <string name="realtime_play">Play</string>
+    <string name="realtime_pause">Pause</string>
+    <string name="realtime_status_idle">Idle — set BPM and tap Play</string>
+    <string name="realtime_status_starting">Starting real-time pipeline…</string>
+    <string name="realtime_status_running">Running — listening and generating accompaniment in real-time</string>
+    <string name="realtime_status_running_midi">Running — streaming selected MIDI through real-time pipeline</string>
+    <string name="realtime_status_paused">Paused</string>
+    <string name="realtime_status_permission">Microphone permission required for real-time mode</string>
 </resources>

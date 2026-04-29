@@ -35,6 +35,12 @@ android {
         viewBinding = true
     }
 
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
+    }
+
     // Don't compress tflite models
     androidResources {
         noCompress += "tflite"

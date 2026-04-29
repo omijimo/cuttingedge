@@ -96,7 +96,6 @@ done
 
 require_cmd powershell.exe
 require_cmd wslpath
-require_cmd gradle
 
 APP_ID="${APP_ID:-$DEFAULT_APP_ID}"
 MAIN_ACTIVITY="${MAIN_ACTIVITY:-$DEFAULT_ACTIVITY}"
@@ -118,10 +117,24 @@ WIN_SDKMANAGER_WINPATH="$WIN_SDK_ROOT_WINPATH\\cmdline-tools\\latest\\bin\\sdkma
 
 WIN_ADB_WINPATH="${WIN_ADB_WINPATH:-$WIN_PLATFORM_TOOLS_WINPATH\\adb.exe}"
 WIN_ADB="$(to_wsl_path "$WIN_ADB_WINPATH")"
+LINUX_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Android/Sdk}}"
 
 if [[ ! -x "$WIN_ADB" ]]; then
   echo "adb.exe not found at: $WIN_ADB_WINPATH" >&2
   exit 1
+fi
+
+if [[ ! -d "$LINUX_SDK_ROOT" ]]; then
+  echo "Android SDK directory not found at: $LINUX_SDK_ROOT" >&2
+  echo "Set ANDROID_SDK_ROOT (or ANDROID_HOME) to your Linux SDK path." >&2
+  exit 1
+fi
+
+if [[ -x "$ANDROID_DIR/gradlew" ]]; then
+  BUILD_CMD=("./gradlew" ":app:assembleDebug")
+else
+  require_cmd gradle
+  BUILD_CMD=("gradle" ":app:assembleDebug")
 fi
 
 SYSTEM_IMAGE="system-images;android-${API_LEVEL};${IMAGE_FLAVOR};${ARCH}"
@@ -166,7 +179,10 @@ fi
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
   log "Building debug APK"
-  gradle -p "$ANDROID_DIR" :app:assembleDebug
+  (
+    cd "$ANDROID_DIR"
+    ANDROID_HOME="$LINUX_SDK_ROOT" ANDROID_SDK_ROOT="$LINUX_SDK_ROOT" "${BUILD_CMD[@]}"
+  )
   log "Installing debug APK"
   "$WIN_ADB" install -r "$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk" >/dev/null
 fi
