@@ -89,7 +89,7 @@ python -m accompaniment.cli preprocess --config configs/base.yaml
 ```
 
 Generates melody–chord pairs from common progressions (I-V-vi-IV, ii-V-I, etc.)
-transposed to all keys. Good enough for smoke-testing the full pipeline.
+transposed to all keys. Good enough for testing the full pipeline.
 
 ### Real Datasets
 
@@ -186,22 +186,70 @@ pytest tests/ -v
 Tests cover: MIDI parsing, tokenization, model forward shapes, accompaniment
 generation, and a full end-to-end pipeline on synthetic data.
 
-## Limitations
+### Scripted usage examples
 
-- **Synthetic training data only** — real-world accuracy requires training on
-  annotated datasets (POP909, iReal Pro exports, etc.)
-- **Stage B is rule-based** — no learned accompaniment generation yet
-- **No real-time streaming** — batch inference only (architecture is
-  streaming-compatible for future work)
-- **No expressive dynamics** — velocities are static per pattern
-- **Export coverage** — ONNX is robust; Core ML and TFLite may need
-  op-level debugging for newer PyTorch versions
+#### Using `scripts/train_and_export.sh`
 
-## Roadmap
+This script runs the full training/export pipeline:
+1. `preprocess` with the provided config
+2. `train` with the same config
+3. `export` from `<checkpoint_dir>/best.pt` to `<outdir>`
 
-1. **Real dataset integration** — POP909, Hooktheory, iReal Pro adapters
-2. **Learned Stage B** — small decoder for accompaniment note generation
-3. **Streaming inference** — causal attention + fixed context window
-4. **Quantization** — INT8 / dynamic quantization for faster edge inference
-5. **Expressive generation** — velocity / timing variation models
-6. **Multi-instrument** — bass, drums, strings accompaniment tracks
+```bash
+# usage
+scripts/train_and_export.sh [config] [checkpoint_dir] [outdir]
+
+# defaults
+scripts/train_and_export.sh
+# equivalent to:
+# scripts/train_and_export.sh configs/small.yaml outputs/checkpoints exports
+```
+
+Run a full training + export pipeline (synthetic preprocess, train, export ONNX/TFLite):
+
+```bash
+scripts/train_and_export.sh
+```
+
+Override config/checkpoint/export locations:
+
+```bash
+scripts/train_and_export.sh configs/base.yaml outputs/checkpoints exports
+```
+
+Run a `.tflite` model on a MIDI file and render the full accompaniment output MIDI:
+
+```bash
+python3 scripts/infer_tflite_midi.py \
+  --model exports/chord_model.tflite \
+  --input data/sample_input/demo.mid \
+  --output data/sample_output/demo_tflite_accomp.mid \
+  --chords-out data/sample_output/demo_tflite_chords.json
+```
+
+### Full training → inference pipeline example
+
+```bash
+# 1) preprocess synthetic data
+python -m accompaniment.cli preprocess --config configs/small.yaml
+
+# 2) train model checkpoint
+python -m accompaniment.cli train --config configs/small.yaml
+
+# 3) export ONNX/TFLite
+python -m accompaniment.cli export \
+  --checkpoint outputs/checkpoints/best.pt \
+  --outdir exports
+
+# 4) run PyTorch checkpoint inference
+python -m accompaniment.cli infer \
+  --checkpoint outputs/checkpoints/best.pt \
+  --input data/sample_input/demo.mid \
+  --output data/sample_output/demo_accomp.mid
+
+# 5) run TFLite inference pipeline (desktop)
+python3 scripts/infer_tflite_midi.py \
+  --model exports/chord_model.tflite \
+  --input data/sample_input/demo.mid \
+  --output data/sample_output/demo_tflite_accomp.mid
+```
