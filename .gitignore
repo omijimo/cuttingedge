@@ -33,3 +33,7 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Android / Gradle local caches
+.gradle/
+**/.gradle/
