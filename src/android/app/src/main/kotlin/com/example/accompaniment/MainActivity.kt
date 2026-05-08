@@ -2,13 +2,9 @@ package com.example.accompaniment
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.media.AudioAttributes
 import android.media.AudioFormat
-import android.media.AudioManager
 import android.media.AudioRecord
-import android.media.AudioTrack
 import android.media.MediaRecorder
-import android.media.ToneGenerator
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -24,11 +20,11 @@ import com.example.accompaniment.inference.ChordVocab
 import com.example.accompaniment.inference.MelodyTokenizer
 import com.example.accompaniment.midi.MidiParser
 import com.example.accompaniment.midi.MidiPlayer
+import com.example.accompaniment.midi.RealtimeMidiPlayer
 import com.example.accompaniment.midi.MidiWriter
 import com.example.accompaniment.streaming.FrameState
 import com.example.accompaniment.streaming.MelodyFrame
 import com.example.accompaniment.streaming.RealTimeStreamingPipeline
-import com.example.accompaniment.streaming.ScheduledNote
 import com.example.accompaniment.streaming.StreamingConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -38,7 +34,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.util.concurrent.Executors
 import kotlin.math.max
 
 class MainActivity : AppCompatActivity() {
@@ -46,7 +41,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var engine: ChordInferenceEngine
     private lateinit var player: MidiPlayer
-    private val realtimeTonePlayer = RealtimeTonePlayer()
+    private lateinit var realtimeTonePlayer: RealtimeMidiPlayer
 
     private var outputFile: File? = null
     private var sampleNames: List<String> = emptyList()
@@ -56,6 +51,8 @@ class MainActivity : AppCompatActivity() {
     private var metronomeJob: Job? = null
     private var realtimePipeline: RealTimeStreamingPipeline? = null
     private var audioRecord: AudioRecord? = null
+    @Volatile
+    private var latestLaggedChords: List<Int> = emptyList()
 
     private val keyOptions = listOf("Auto", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
     private val modeOptions = listOf("Auto", "Major", "Minor")
@@ -74,6 +71,7 @@ class MainActivity : AppCompatActivity() {
 
         engine = ChordInferenceEngine(this)
         player = MidiPlayer(this)
+        realtimeTonePlayer = RealtimeMidiPlayer(this)
 
         // Discover sample MIDI files from assets/samples/
         sampleNames = assets.list("samples")
@@ -251,17 +249,27 @@ class MainActivity : AppCompatActivity() {
         binding.realtimeStatusText.text = getString(R.string.realtime_status_starting)
         binding.realtimePlayPauseButton.text = getString(R.string.realtime_pause)
         isRealtimeRunning = true
+        latestLaggedChords = emptyList()
+        resetNowPlayingUi()
 
         realtimePipeline = RealTimeStreamingPipeline(
             config = config,
             chordInferenceEngine = engine,
             ticksPerBeat = TICKS_PER_BEAT,
             onInferenceDebug = { dbg ->
+                latestLaggedChords = dbg.laggedChords
                 Log.d(TAG_RT_DEBUG, "rt.model_input_tokens=${dbg.melodyTokens.joinToString(",")}")
                 Log.d(TAG_RT_DEBUG, "rt.model_input_positions=${dbg.beatPositions.joinToString(",")}")
                 Log.d(TAG_RT_DEBUG, "rt.chord_output_tokens=${dbg.windowChordIds.joinToString(",")}")
                 Log.d(TAG_RT_DEBUG, "rt.chord_merged_window=${dbg.mergedWindowChords.joinToString(",")}")
                 Log.d(TAG_RT_DEBUG, "rt.chord_lagged_timeline=${dbg.laggedChords.joinToString(",")}")
+            },
+            onPitchDebug = { p ->
+                Log.d(
+                    TAG_RT_DEBUG,
+                    "rt.autocorr_frame step=${p.stepIndex},state=${p.state},midi=${p.midiPitch},conf=" +
+                        "${"%.3f".format(p.confidence)},rms=${"%.4f".format(p.inputRms)},peak=${"%.4f".format(p.inputPeak)}"
+                )
             },
             onAccompanimentDebug = { notes ->
                 Log.d(
@@ -336,6 +344,7 @@ class MainActivity : AppCompatActivity() {
                     if (due.isNotEmpty()) {
                         generatedNotes += due.size
                         realtimeTonePlayer.playNotes(due, config.bpm, TICKS_PER_BEAT)
+                        updateNowPlayingUi(due)
                     }
 
                     if (captureNanos - lastUiUpdate > 1_000_000_000L) {
@@ -399,6 +408,7 @@ class MainActivity : AppCompatActivity() {
                     if (due.isNotEmpty()) {
                         generatedNotes += due.size
                         realtimeTonePlayer.playNotes(due, config.bpm, TICKS_PER_BEAT)
+                        updateNowPlayingUi(due)
                     }
 
                     if (i - lastUiStep >= config.gridResolution) {
@@ -431,6 +441,7 @@ class MainActivity : AppCompatActivity() {
                     val due = realtimePipeline?.onMelodyFrame(rest, transportTick).orEmpty()
                     if (due.isNotEmpty()) {
                         realtimeTonePlayer.playNotes(due, config.bpm, TICKS_PER_BEAT)
+                        updateNowPlayingUi(due)
                     }
                     delay(stepMs)
                 }
@@ -452,6 +463,7 @@ class MainActivity : AppCompatActivity() {
         metronomeJob?.cancel()
         realtimeJob = null
         metronomeJob = null
+        realtimeTonePlayer.stopPlayback()
 
         runCatching { audioRecord?.stop() }
         runCatching { audioRecord?.release() }
@@ -459,8 +471,10 @@ class MainActivity : AppCompatActivity() {
 
         realtimePipeline?.close()
         realtimePipeline = null
+        latestLaggedChords = emptyList()
         binding.realtimePlayPauseButton.text = getString(R.string.realtime_play)
         binding.realtimeStatusText.text = getString(R.string.realtime_status_paused)
+        resetNowPlayingUi()
     }
 
     private fun startMetronome(config: StreamingConfig) {
@@ -511,6 +525,30 @@ class MainActivity : AppCompatActivity() {
     private fun selectedMode(): String =
         modeOptions.getOrElse(binding.realtimeModeSpinner.selectedItemPosition) { "Auto" }
 
+    private fun updateNowPlayingUi(due: List<com.example.accompaniment.streaming.ScheduledNote>) {
+        for (note in due) {
+            val chordLabel = chordLabelForTick(note.startTick)
+            runOnUiThread {
+                if (isRealtimeRunning) {
+                    binding.realtimeNowPlayingChordText.text =
+                        getString(R.string.realtime_now_playing_chord_value, chordLabel)
+                }
+            }
+        }
+    }
+
+    private fun chordLabelForTick(startTick: Long): String {
+        val lagged = latestLaggedChords
+        if (lagged.isEmpty()) return "N.C."
+        val beatIndex = (startTick / TICKS_PER_BEAT).toInt().coerceAtLeast(0)
+        val chordId = lagged.getOrElse(beatIndex) { lagged.last() }
+        return ChordVocab.chordToString(chordId)
+    }
+
+    private fun resetNowPlayingUi() {
+        binding.realtimeNowPlayingChordText.text = getString(R.string.realtime_now_playing_chord_placeholder)
+    }
+
     private fun hasRecordPermission(): Boolean =
         ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
@@ -546,105 +584,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         stopRealtime()
-        realtimeTonePlayer.release()
+        if (::realtimeTonePlayer.isInitialized) realtimeTonePlayer.close()
         super.onDestroy()
         player.close()
         engine.close()
-    }
-}
-
-private class RealtimeTonePlayer {
-    private val sampleRate = 44_100
-    private val minBuffer = AudioTrack.getMinBufferSize(
-        sampleRate,
-        AudioFormat.CHANNEL_OUT_MONO,
-        AudioFormat.ENCODING_PCM_16BIT,
-    ).coerceAtLeast(sampleRate / 2)
-    private val audioTrack = AudioTrack.Builder()
-        .setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build()
-        )
-        .setAudioFormat(
-            AudioFormat.Builder()
-                .setSampleRate(sampleRate)
-                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                .build()
-        )
-        .setTransferMode(AudioTrack.MODE_STREAM)
-        .setBufferSizeInBytes(minBuffer)
-        .build()
-    private val synthExecutor = Executors.newSingleThreadExecutor()
-    private val toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 80)
-
-    init {
-        audioTrack.play()
-    }
-
-    fun playMetronome(accent: Boolean) {
-        val tone = if (accent) ToneGenerator.TONE_PROP_BEEP2 else ToneGenerator.TONE_PROP_BEEP
-        toneGenerator.startTone(tone, 40)
-    }
-
-    fun playNotes(notes: List<ScheduledNote>, bpm: Float, ticksPerBeat: Int) {
-        if (notes.isEmpty()) return
-        val snapshot = notes.toList()
-        synthExecutor.execute {
-            renderAndPlay(snapshot, bpm, ticksPerBeat)
-        }
-    }
-
-    fun release() {
-        runCatching { synthExecutor.shutdownNow() }
-        runCatching {
-            audioTrack.pause()
-            audioTrack.flush()
-            audioTrack.release()
-        }
-        toneGenerator.release()
-    }
-
-    private fun renderAndPlay(notes: List<ScheduledNote>, bpm: Float, ticksPerBeat: Int) {
-        if (notes.isEmpty() || bpm <= 0f || ticksPerBeat <= 0) return
-
-        val secPerTick = 60.0 / bpm.toDouble() / ticksPerBeat.toDouble()
-        val minTick = notes.minOf { it.startTick }
-        val maxEndTick = notes.maxOf { it.startTick + it.durationTicks }
-        val totalSamples = ((maxEndTick - minTick) * secPerTick * sampleRate).toInt().coerceAtLeast(sampleRate / 20)
-        val mix = FloatArray(totalSamples + 1)
-
-        for (note in notes) {
-            val start = ((note.startTick - minTick) * secPerTick * sampleRate).toInt().coerceAtLeast(0)
-            val durSamples = (note.durationTicks * secPerTick * sampleRate).toInt().coerceAtLeast(1)
-            val end = (start + durSamples).coerceAtMost(mix.size)
-            if (start >= end) continue
-
-            val freq = 440.0 * Math.pow(2.0, (note.pitch - 69) / 12.0)
-            val amp = (note.velocity.coerceIn(1, 127) / 127.0f) * 0.28f
-            val attack = (0.005 * sampleRate).toInt().coerceAtLeast(1)
-            val release = (0.02 * sampleRate).toInt().coerceAtLeast(1)
-            val phaseInc = 2.0 * Math.PI * freq / sampleRate
-            var phase = 0.0
-            var i = 0
-            for (idx in start until end) {
-                val env = when {
-                    i < attack -> i.toFloat() / attack
-                    (end - idx) < release -> (end - idx).toFloat() / release
-                    else -> 1.0f
-                }
-                mix[idx] += (Math.sin(phase) * amp * env).toFloat()
-                phase += phaseInc
-                i++
-            }
-        }
-
-        val pcm = ShortArray(mix.size)
-        for (i in mix.indices) {
-            pcm[i] = (mix[i].coerceIn(-1.0f, 1.0f) * 32767.0f).toInt().toShort()
-        }
-        audioTrack.write(pcm, 0, pcm.size, AudioTrack.WRITE_BLOCKING)
     }
 }

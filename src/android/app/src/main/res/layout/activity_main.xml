@@ -253,6 +253,25 @@
             android:text="@string/realtime_status_idle"
             android:textSize="13sp"
             android:textColor="@color/on_surface_secondary"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:id="@+id/realtimeNowPlayingLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/realtime_now_playing_label"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/realtimeNowPlayingChordText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/realtime_now_playing_chord_placeholder"
+            android:textSize="13sp"
+            android:textColor="@color/on_surface_secondary"
             android:layout_marginBottom="24dp" />
 
     </LinearLayout>

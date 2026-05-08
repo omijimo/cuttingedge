@@ -62,7 +62,8 @@ MainActivity
   ├── ChordVocab          — decodes chord IDs to root+quality
   ├── AccompanimentGenerator — deterministic bass+chord pattern
   ├── MidiWriter          — writes two-track .mid file
-  └── MidiPlayer          — Android MediaPlayer for MIDI playback
+  ├── MidiPlayer          — Android MediaPlayer for full MIDI playback
+  └── RealtimeMidiPlayer  — low-latency MIDI clip playback for live accompaniment
 ```
 
 All inference runs on a background coroutine; the UI stays responsive.

@@ -12,8 +12,8 @@ class NativePitchDetector(
     private val config: StreamingConfig,
     minFreqHz: Float = 65.4f,
     maxFreqHz: Float = 1046.5f,
-    private val onThreshold: Float = 0.65f,
-    private val holdThreshold: Float = 0.45f,
+    private val onThreshold: Float = 0.35f,
+    private val holdThreshold: Float = 0.20f,
 ) : AutoCloseable {
 
     private val nanosPerBeat = (60_000_000_000.0 / config.bpm).toLong()

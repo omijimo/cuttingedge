@@ -13,6 +13,7 @@ class RealTimeStreamingPipeline(
     chordInferenceEngine: ChordInferenceEngine,
     private val ticksPerBeat: Int = 480,
     onInferenceDebug: ((InferenceDebugSnapshot) -> Unit)? = null,
+    private val onPitchDebug: ((PitchDebugSnapshot) -> Unit)? = null,
     private val onAccompanimentDebug: ((List<ScheduledNote>) -> Unit)? = null,
     private val onDueNotesDebug: ((List<ScheduledNote>) -> Unit)? = null,
 ) : AutoCloseable {
@@ -31,6 +32,26 @@ class RealTimeStreamingPipeline(
         val melodyFrame = pitchDetector.processFrame(pcm, captureTimeNanos)
         val transportBeat = captureTimeNanos / nanosPerBeat
         val transportTick = transportBeat * ticksPerBeat
+        if (pcm.isNotEmpty()) {
+            var sumSq = 0.0
+            var peak = 0.0f
+            for (s in pcm) {
+                sumSq += (s * s).toDouble()
+                val abs = kotlin.math.abs(s)
+                if (abs > peak) peak = abs
+            }
+            val rms = kotlin.math.sqrt(sumSq / pcm.size.toDouble()).toFloat()
+            onPitchDebug?.invoke(
+                PitchDebugSnapshot(
+                    stepIndex = melodyFrame.stepIndex,
+                    state = melodyFrame.state.name,
+                    midiPitch = melodyFrame.midiPitch,
+                    confidence = melodyFrame.confidence,
+                    inputRms = rms,
+                    inputPeak = peak,
+                )
+            )
+        }
         return onMelodyFrame(melodyFrame, transportTick)
     }
 
@@ -65,3 +86,12 @@ class RealTimeStreamingPipeline(
         reset()
     }
 }
+
+data class PitchDebugSnapshot(
+    val stepIndex: Long,
+    val state: String,
+    val midiPitch: Int,
+    val confidence: Float,
+    val inputRms: Float,
+    val inputPeak: Float,
+)

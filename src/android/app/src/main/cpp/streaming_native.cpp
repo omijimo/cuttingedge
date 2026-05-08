@@ -20,6 +20,7 @@ struct PitchDetectorState {
     float max_freq;
 };
 
+
 int clamp_midi(int v) {
     return std::max(0, std::min(127, v));
 }

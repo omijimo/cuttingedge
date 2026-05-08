@@ -26,4 +26,7 @@
     <string name="realtime_status_running_midi">Running — streaming selected MIDI through real-time pipeline</string>
     <string name="realtime_status_paused">Paused</string>
     <string name="realtime_status_permission">Microphone permission required for real-time mode</string>
+    <string name="realtime_now_playing_label">Now playing</string>
+    <string name="realtime_now_playing_chord_placeholder">Chord: --</string>
+    <string name="realtime_now_playing_chord_value">Chord: %1$s</string>
 </resources>
